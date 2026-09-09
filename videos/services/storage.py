@@ -53,3 +53,13 @@ def get_object_metadata(object_key):
 
 def object_exists(object_key):
     return get_object_metadata(object_key) is not None
+
+
+def delete_object(object_key):
+    """Delete an object, allowing storage errors to propagate."""
+    s3 = get_s3_client()
+
+    s3.delete_object(
+        Bucket=settings.S3_BUCKET_NAME,
+        Key=object_key,
+    )
