@@ -1,8 +1,9 @@
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from core.responses import success_response
 
 from .serializers import LoginSerializer
 
@@ -16,10 +17,12 @@ class LoginView(APIView):
 
         user = serializer.validated_data["user"]
 
-        token, _ = Token.objects.get_or_create(user=user)
+        token, _ = Token.objects.get_or_create(
+            user=user,
+        )
 
-        return Response(
-            {
+        return success_response(
+            data={
                 "token": token.key,
                 "user": {
                     "id": user.id,
@@ -27,5 +30,6 @@ class LoginView(APIView):
                     "email": user.email,
                 },
             },
+            message="Login successful.",
             status=status.HTTP_200_OK,
         )

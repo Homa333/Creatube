@@ -1,4 +1,5 @@
 import boto3
+
 from django.conf import settings
 
 
@@ -26,19 +27,29 @@ def generate_upload_url(object_key, content_type):
     )
 
 
-def object_exists(object_key):
+def get_object_metadata(object_key):
+    """Return stored size and content type, or None if the object is missing."""
     s3 = get_s3_client()
 
     try:
-        s3.head_object(
+        response = s3.head_object(
             Bucket=settings.S3_BUCKET_NAME,
             Key=object_key,
         )
-        return True
+
     except s3.exceptions.ClientError as exc:
         error_code = exc.response.get("Error", {}).get("Code")
 
         if error_code in ("404", "NoSuchKey", "NotFound"):
-            return False
+            return None
 
         raise
+
+    return {
+        "size": response["ContentLength"],
+        "content_type": response.get("ContentType", ""),
+    }
+
+
+def object_exists(object_key):
+    return get_object_metadata(object_key) is not None
