@@ -12,17 +12,37 @@ from videos.services.storage import (
     get_object_metadata,
 )
 
-from .models import Video, VideoFile
+from .models import Video, VideoFile, VideoProcessingRequest
 from .serializers import VideoSerializer, VideoUploadSerializer
-from .tasks import process_video
 
 
-class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.all()
+class VideoViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
     serializer_class = VideoSerializer
 
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+    queryset = (
+        Video.objects
+        .filter(status=Video.Status.READY)
+        .order_by("-created_at", "-id")
+    )
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+
+        return success_response(
+            data=response.data,
+            message="Videos retrieved successfully.",
+            status=response.status_code,
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+
+        return success_response(
+            data=response.data,
+            message="Video retrieved successfully.",
+            status=response.status_code,
+        )
 
 
 class VideoUploadURLView(APIView):
@@ -158,15 +178,32 @@ class VideoUploadCompleteView(APIView):
                 update_fields=["status", "updated_at"],
             )
 
-            transaction.on_commit(
-                lambda: process_video.delay(str(video.id))
-            )
+            VideoProcessingRequest.objects.create(video=video)
 
         return success_response(
             data={
                 "video_id": str(video.id),
                 "status": video.status,
             },
-            message="Video processing queued.",
-            status=status.HTTP_200_OK,
+            message="Upload verified. Processing request accepted.",
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class VideoUploadStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, video_id):
+        video = get_object_or_404(
+            Video,
+            id=video_id,
+            owner=request.user,
+        )
+
+        return success_response(
+            data={
+                "video_id": str(video.id),
+                "status": video.status,
+            },
+            message="Video upload status retrieved successfully.",
         )
