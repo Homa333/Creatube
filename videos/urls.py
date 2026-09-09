@@ -15,8 +15,8 @@ urlpatterns = [
     ),
     path("", include(router.urls)),
     path(
-    "<int:video_id>/upload-complete/",
+        "videos/<uuid:video_id>/upload-complete/",
     VideoUploadCompleteView.as_view(),
     name="video-upload-complete",
-),
+    ),
 ]
